@@ -3,7 +3,7 @@
 ```
 Vercel (fe, FE-manager-v3) ──HTTPS──▶ Cloud Run asia-southeast1: event-mng-api ──Session pooler──▶ Supabase (Singapore)
                                               ▲
-GitHub main ──trigger──▶ Cloud Build ─────────┘  (build Dockerfile → Artifact Registry → deploy)
+GitHub main ──Actions──▶ Cloud Build ─────────┘  (build Dockerfile → Artifact Registry → deploy)
 ```
 
 | Thông tin | Giá trị |
@@ -21,7 +21,8 @@ GitHub main ──trigger──▶ Cloud Build ─────────┘  (
 | File | Vai trò |
 |---|---|
 | [`cloudbuild.yaml`](../cloudbuild.yaml) | Pipeline build/deploy **và** cấu hình runtime (CPU, RAM, billing, scaling, secret) |
-| [`deploy/gcp.sh`](gcp.sh) | `setup`, `check-env`, `env`, `deploy`, `status`, `keepalive` |
+| [`.github/workflows/cloud-run.yml`](../.github/workflows/cloud-run.yml) | Tự deploy khi push `main` (chạy `cloudbuild.yaml`, đăng nhập GCP bằng Workload Identity Federation) |
+| [`deploy/gcp.sh`](gcp.sh) | `setup`, `check-env`, `env`, `deploy`, `status`, `keepalive`, `github` |
 | [`deploy/cloudrun.env.example`](cloudrun.env.example) | Mẫu file cấu hình bí mật |
 | [`deploy/db-copy.sh`](db-copy.sh) | Tuỳ chọn: copy dữ liệu cũ từ Neon sang Supabase |
 
@@ -66,15 +67,15 @@ Chạy local/VPS không đặt các biến trên nên vẫn chạy nền như c�
 | # | Bước | Ai làm | Trạng thái |
 |---|---|---|---|
 | 0 | [Code và nhánh](#0-code-và-nhánh) | bạn | |
-| 1 | [Tạo Supabase](#1-tạo-supabase) | bạn | |
+| 1 | [Tạo Supabase](#1-tạo-supabase) | bạn | ✅ |
 | 2 | [(Tuỳ chọn) Copy dữ liệu cũ từ Neon](#2-tuỳ-chọn-copy-dữ-liệu-cũ-từ-neon) | bạn | |
 | 3 | [Project GCP + setup](#3-project-gcp--setup) | | ✅ đã xong 07/10/2026 |
-| 4 | [File cấu hình → Secret Manager](#4-file-cấu-hình--secret-manager) | bạn | |
-| 5 | [Deploy lần đầu](#5-deploy-lần-đầu) | bạn | |
+| 4 | [File cấu hình → Secret Manager](#4-file-cấu-hình--secret-manager) | bạn | ✅ 08/10/2026 |
+| 5 | [Deploy lần đầu](#5-deploy-lần-đầu) | bạn | ✅ 08/10/2026 |
 | 6 | [Kiểm tra trên console Cloud Run](#6-kiểm-tra-trên-console-cloud-run) | bạn | |
-| 7 | [Chống Supabase tự tạm dừng](#7-chống-supabase-tự-tạm-dừng) | bạn | |
+| 7 | [Chống Supabase tự tạm dừng](#7-chống-supabase-tự-tạm-dừng) | bạn | ✅ |
 | 8 | [Cảnh báo chi phí](#8-cảnh-báo-chi-phí) | bạn | |
-| 9 | [Cloud Build trigger](#9-cloud-build-trigger-tự-deploy-khi-merge-main) | canhhocit + bạn | |
+| 9 | [Tự deploy khi merge `main`](#9-tự-deploy-khi-merge-main-github-actions) | | ✅ 12/10/2026 (GitHub Actions) |
 | 10 | [Chuyển frontend + PayOS](#10-chuyển-frontend--payos) | bạn | |
 | 11 | [Tắt VPS, xoá Neon](#11-tắt-vps-xoá-neon) | bạn | |
 
@@ -82,7 +83,7 @@ Chạy local/VPS không đặt các biến trên nên vẫn chạy nền như c�
 
 ## 0. Code và nhánh
 
-- Code trên nhánh `minh`, mở Pull Request vào `main`. Trigger chỉ deploy `main`. Không dùng nhánh `deploy` (bỏ từ 07/2026).
+- Code trên nhánh `minh`, mở Pull Request vào `main`. Chỉ `main` được tự deploy. Không dùng nhánh `deploy` (bỏ từ 07/2026).
 - Commit và push trước khi làm tiếp:
 
   ```bash
@@ -265,48 +266,29 @@ Budget **không chặn** chi tiêu, chỉ gửi email. Giới hạn cứng là `
 2. Name `event-mng`; Scope → Projects: chỉ chọn `event-mng-510915`.
 3. Amount `5` USD; Thresholds 50%, 90%, 100% → **Finish**.
 
-## 9. Cloud Build trigger (tự deploy khi merge `main`)
+## 9. Tự deploy khi merge `main` (GitHub Actions)
 
-**9.1. canhhocit cài GitHub App.** Repo nằm trong tài khoản cá nhân của canhhocit nên chỉ họ làm được:
+Push hoặc merge Pull Request vào `main` → workflow [`.github/workflows/cloud-run.yml`](../.github/workflows/cloud-run.yml) chạy `gcloud builds submit` với `cloudbuild.yaml` (giống hệt bước 5) → Cloud Run có revision mới → workflow gọi thử `/api/v1/ping`. Mất khoảng 7 phút.
 
-- Mở <https://github.com/apps/google-cloud-build> → **Configure** → tài khoản `canhhocit` → **Only select repositories** → `be-event-mng-v3` → **Save**.
+- Không cần canhhocit cài GitHub App và không lưu key nào trên GitHub: workflow đăng nhập GCP bằng **Workload Identity Federation** (GitHub cấp OIDC token cho job, GCP đổi thành quyền của `event-mng-deployer`).
+- Provider chỉ nhận token của repo `canhhocit/be-event-mng-v3` (so theo repository id) trên nhánh `main`: nhánh khác, fork hay Pull Request đều không deploy được.
+- Commit chỉ sửa file `.md` thì không deploy.
 
-**9.2. Kết nối GitHub**
+Đã cấu hình cho `event-mng-510915` ngày 12/10/2026. Lệnh chạy lại được nhiều lần:
 
-1. **Cloud Build** → **Repositories** → tab **2nd gen** → **Create host connection**.
-2. Provider **GitHub**, **Region** `asia-southeast1`, **Name** `github` → **Connect**.
-3. Console hỏi cấp quyền Secret Manager cho Cloud Build service agent: đồng ý.
-4. Đăng nhập GitHub của bạn → **Authorize**. Ở bước chọn installation, chọn bản của `canhhocit`.
+```bash
+./deploy/gcp.sh github event-mng-510915
+```
 
-**9.3. Link repository**
-
-1. Bấm **Link Repositories**.
-2. **Connection** `github`; **Repository** `canhhocit/be-event-mng-v3`; tên để tự sinh.
-3. Bấm **Link**.
-
-Không thấy repo trong danh sách:
-
-- Tạm cấp cho canhhocit quyền *Owner* trên project (**IAM & Admin → IAM → Grant access**) để họ tự làm 9.2–9.3, xong thì gỡ.
-- Hoặc tiếp tục deploy tay bằng bước 5.
-
-**9.4. Tạo trigger:** **Cloud Build** → **Triggers** → chọn region `asia-southeast1` ở đầu trang → **Create trigger**:
-
-| Trường | Giá trị |
+| Tài nguyên | Giá trị |
 |---|---|
-| **Name** | `deploy-event-mng-api` |
-| **Region** | `asia-southeast1` |
-| **Event** | **Push to a branch** |
-| **Source** | **2nd gen** → **Repository** `canhhocit-be-event-mng-v3` → **Branch** `^main$` |
-| **Configuration** | **Cloud Build configuration file (yaml or json)** |
-| **Location** | **Repository** → `cloudbuild.yaml` |
-| Substitution variables, Approval | Để trống, không tick |
-| **Service account** | `event-mng-deployer@event-mng-510915.iam.gserviceaccount.com` |
+| Workload Identity Pool | `github` (IAM & Admin → **Workload Identity Federation**) |
+| Provider | `be-event-mng-v3`, issuer `https://token.actions.githubusercontent.com`, điều kiện: đúng repo id + `refs/heads/main` |
+| Quyền thêm cho `event-mng-deployer` | `roles/iam.workloadIdentityUser` cho workflow của repo; `roles/iam.serviceAccountUser` trên chính nó |
 
-→ **Create**.
-
-**9.5. Chạy:** merge PR `minh → main` → trigger tự chạy → xem **History** (region `asia-southeast1`). Chưa merge thì `main` chưa có `cloudbuild.yaml`, bấm **Run** sẽ lỗi.
-
-Lỗi `Due to quota restrictions...`: tạo lại kết nối kiểu **1st gen** (tab 1st gen → **Connect repository**) và trigger với Region **global**.
+- Theo dõi: GitHub → repo → **Actions** → **Deploy Cloud Run**. Log build chi tiết: link `Logs are available at` trong bước Build, hoặc **Cloud Build → History** (region **global**).
+- Chạy lại không cần commit: **Actions** → **Deploy Cloud Run** → **Run workflow** → nhánh `main`.
+- Vẫn deploy tay được bất cứ lúc nào bằng bước 5 (lấy code trên máy, kể cả phần chưa commit).
 
 ## 10. Chuyển frontend + PayOS
 
@@ -330,6 +312,7 @@ Lỗi `Due to quota restrictions...`: tạo lại kết nối kiểu **1st gen**
 
 | Việc | Cách làm |
 |---|---|
+| Deploy code mới | Merge/push vào `main` (tự deploy, bước 9); deploy tay: `./deploy/gcp.sh deploy event-mng-510915` |
 | Đổi biến cấu hình | Sửa `deploy/cloudrun.env` → `./deploy/gcp.sh env event-mng-510915` (tự tạo revision mới để app đọc lại) |
 | Đổi CPU/RAM/scaling/billing | Sửa `cloudbuild.yaml` → merge vào `main` (hoặc `./deploy/gcp.sh deploy event-mng-510915`) |
 | Xem log app | Cloud Run → **Logs**, hoặc `gcloud run services logs read event-mng-api --region asia-southeast1 --project event-mng-510915 --limit 200` |
@@ -362,7 +345,7 @@ Lỗi `Due to quota restrictions...`: tạo lại kết nối kiểu **1st gen**
 | `Could not resolve placeholder '...'` | Thiếu key trong secret: `./deploy/gcp.sh check-env` rồi `env` |
 | `Config data resource 'file [/secrets/app.properties]' ... does not exist` | Secret chưa có version: chạy `env` |
 | `Permission denied on secret` / `iam.serviceaccounts.actAs` | Chạy lại `./deploy/gcp.sh setup event-mng-510915` |
-| Build lỗi lúc lấy source từ GitHub | Thiếu role Read Token Accessor: chạy lại `setup` |
+| Workflow lỗi ở bước auth: `Permission 'iam.serviceAccounts.getAccessToken' denied` / `unauthorized_client` | Sai provider/repo id/nhánh, hoặc thiếu quyền: chạy lại `./deploy/gcp.sh github event-mng-510915` |
 | Mail/PDF không gửi sau thanh toán | Kiểm tra `APP_ASYNC_ENABLED=false`, xem log `Brevo` |
 | Frontend vẫn gọi URL cũ | Chưa **Redeploy** trên Vercel |
 | PayOS không cập nhật đơn | Webhook URL trên PayOS còn trỏ server cũ |

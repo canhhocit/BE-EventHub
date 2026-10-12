@@ -1,7 +1,7 @@
 # Cloud Build: build image -> push Artifact Registry -> deploy Cloud Run (Singapore).
 #
-# Chạy tự động: Cloud Build trigger khi push lên nhánh main.
-# Chạy tay:     ./deploy/gcp.sh <PROJECT_ID> deploy
+# Chạy tự động: GitHub Actions (.github/workflows/cloud-run.yml) khi push lên nhánh main.
+# Chạy tay:     ./deploy/gcp.sh deploy <PROJECT_ID>
 #
 # Cấu hình runtime của service (CPU, RAM, billing, scaling, secret) nằm ở bước "deploy" bên dưới.
 # Muốn đổi thì sửa file này: chỉnh trên console sẽ bị ghi đè ở lần deploy sau.
@@ -15,7 +15,7 @@ substitutions:
   _ENV_SECRET: event-mng-env
   _IMAGE: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}
   # URL cố định của Cloud Run (https://SERVICE-PROJECT_NUMBER.REGION.run.app).
-  # Gắn domain riêng thì override biến này trong trigger.
+  # Gắn domain riêng thì override biến này (gcloud builds submit --substitutions=_BACKEND_URL=...).
   _BACKEND_URL: https://${_SERVICE}-${PROJECT_NUMBER}.${_REGION}.run.app
 
 steps:

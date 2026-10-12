@@ -7,6 +7,7 @@
 #   ./deploy/gcp.sh deploy    <PROJECT_ID>          # build + deploy bằng Cloud Build từ code đang có trên máy
 #   ./deploy/gcp.sh status    <PROJECT_ID>          # URL, các revision gần nhất, gọi thử /api/v1/ping
 #   ./deploy/gcp.sh keepalive <PROJECT_ID>          # lịch gọi /api/v1/ping 12h/lần để Supabase Free không tạm dừng
+#   ./deploy/gcp.sh github    <PROJECT_ID>          # cho GitHub Actions tự deploy khi push main (Workload Identity, không key)
 #
 # Đặt YES=1 để bỏ qua câu hỏi xác nhận. Tên tài nguyên phải khớp substitutions trong cloudbuild.yaml.
 set -euo pipefail
@@ -17,6 +18,13 @@ AR_REPO=event-mng
 RUNTIME_SA_NAME=event-mng-run
 DEPLOYER_SA_NAME=event-mng-deployer
 ENV_SECRET=event-mng-env
+
+# Phải khớp .github/workflows/cloud-run.yml. Repo id không đổi khi đổi tên repo:
+# https://api.github.com/repos/canhhocit/be-event-mng-v3
+GITHUB_REPO=canhhocit/be-event-mng-v3
+GITHUB_REPO_ID=1220702379
+WIF_POOL=github
+WIF_PROVIDER=be-event-mng-v3
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 DEFAULT_ENV_FILE="$ROOT_DIR/deploy/cloudrun.env"
@@ -33,7 +41,7 @@ die()  { echo "LỖI: $*" >&2; exit 1; }
 warn() { echo "CẢNH BÁO: $*" >&2; }
 step() { echo; echo "==> $*"; }
 
-usage() { sed -n '2,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 1; }
+usage() { sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 1; }
 
 sa_email() { echo "$2@$1.iam.gserviceaccount.com"; }
 
@@ -283,10 +291,58 @@ keepalive() {
   echo "Lịch $job: 0h và 12h mỗi ngày gọi $url"
 }
 
+# GitHub Actions (.github/workflows/cloud-run.yml) đăng nhập bằng OIDC token GitHub cấp cho job, qua
+# Workload Identity Federation: không có key nào nằm trên GitHub. Provider chỉ nhận token của đúng repo
+# (so theo id: đổi tên hay tạo repo trùng tên cũng không lách được) trên nhánh main, rồi cho đóng vai deployer.
+github_actions() {
+  local project=$1 number deployer
+  confirm "$project"
+  number=$(gcloud projects describe "$project" --format='value(projectNumber)')
+  deployer=$(sa_email "$project" "$DEPLOYER_SA_NAME")
+
+  step "Bật API"
+  gcloud services enable sts.googleapis.com iamcredentials.googleapis.com --project "$project"
+
+  step "Workload Identity Pool: $WIF_POOL"
+  if gcloud iam workload-identity-pools describe "$WIF_POOL" --project "$project" --location global >/dev/null 2>&1; then
+    echo "  đã có $WIF_POOL"
+  else
+    gcloud iam workload-identity-pools create "$WIF_POOL" --project "$project" --location global \
+      --display-name "GitHub Actions"
+  fi
+
+  step "Provider $WIF_PROVIDER: chỉ repo $GITHUB_REPO, nhánh main"
+  local args=(--project "$project" --location global --workload-identity-pool "$WIF_POOL"
+    --issuer-uri https://token.actions.githubusercontent.com
+    --attribute-mapping "google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.ref=assertion.ref"
+    --attribute-condition "assertion.repository_id == '$GITHUB_REPO_ID' && assertion.ref == 'refs/heads/main'")
+  if gcloud iam workload-identity-pools providers describe "$WIF_PROVIDER" --project "$project" --location global \
+    --workload-identity-pool "$WIF_POOL" >/dev/null 2>&1; then
+    gcloud iam workload-identity-pools providers update-oidc "$WIF_PROVIDER" "${args[@]}"
+  else
+    gcloud iam workload-identity-pools providers create-oidc "$WIF_PROVIDER" "${args[@]}" --display-name "$GITHUB_REPO"
+  fi
+
+  step "Phân quyền cho $DEPLOYER_SA_NAME"
+  echo "  roles/iam.workloadIdentityUser cho workflow của $GITHUB_REPO"
+  retry gcloud iam service-accounts add-iam-policy-binding "$deployer" --project "$project" \
+    --member="principalSet://iam.googleapis.com/projects/$number/locations/global/workloadIdentityPools/$WIF_POOL/attribute.repository_id/$GITHUB_REPO_ID" \
+    --role=roles/iam.workloadIdentityUser --condition=None >/dev/null
+  # Workflow gọi gcloud builds submit --service-account=deployer: deployer tự chạy build bằng chính nó.
+  echo "  roles/iam.serviceAccountUser trên chính $DEPLOYER_SA_NAME"
+  retry gcloud iam service-accounts add-iam-policy-binding "$deployer" --project "$project" \
+    --member="serviceAccount:$deployer" --role=roles/iam.serviceAccountUser --condition=None >/dev/null
+
+  echo
+  echo "Xong. .github/workflows/cloud-run.yml phải dùng:"
+  echo "  workload_identity_provider: projects/$number/locations/global/workloadIdentityPools/$WIF_POOL/providers/$WIF_PROVIDER"
+  echo "  service_account: $deployer"
+}
+
 cmd=${1:-}
 [[ $# -gt 0 ]] && shift
 case $cmd in
-  setup | env | deploy | status | keepalive) [[ -n ${1:-} ]] || usage ;;
+  setup | env | deploy | status | keepalive | github) [[ -n ${1:-} ]] || usage ;;
 esac
 case $cmd in
   setup) setup "$1" ;;
@@ -295,5 +351,6 @@ case $cmd in
   deploy) deploy "$1" ;;
   status) status "$1" ;;
   keepalive) keepalive "$1" ;;
+  github) github_actions "$1" ;;
   *) usage ;;
 esac
