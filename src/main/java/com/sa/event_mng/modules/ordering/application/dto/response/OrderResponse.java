@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 @Builder
 public class OrderResponse {
     private String id;
+    private Long orderCode;
     private BigDecimal organizerAmount; // tổng tiền btc ăn
     private Float platformFeeRate;  //phần trăm tiền admin ăn
     private BigDecimal serviceFee;  //tổng tiền admin ăn
@@ -21,5 +22,6 @@ public class OrderResponse {
     private PaymentStatus paymentStatus;
     private OrderStatus orderStatus;
     private LocalDateTime orderDate;
+    private LocalDateTime expiresAt;
     private String paymentUrl;
 }

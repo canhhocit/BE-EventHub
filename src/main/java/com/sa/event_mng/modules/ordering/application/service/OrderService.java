@@ -122,13 +122,20 @@ public class OrderService {
 
     private OrderResponse createOrderFromItems(User user, List<CartItem> items, PaymentMethod paymentMethod, Cart cart, String voucherCode, String platform) {
         BigDecimal subTotal = BigDecimal.ZERO;
+        LocalDateTime now = LocalDateTime.now();
+        // Giữ vé trong 10 phút (Ticket Reservation Hold)
+        LocalDateTime expiresAt = now.plusMinutes(10);
+
         for (CartItem item : items) {
             subTotal = subTotal.add(item.getSubtotal());
             Event event = item.getTicketType().getEvent();
             if (event.getStatus() != EventStatus.OPENING) {
                 throw new AppException(ErrorCode.EVENT_NOT_OPENING);
             }
-            if (item.getTicketType().getRemainingQuantity() < item.getQuantity()) {
+
+            // Trừ vé nguyên tử trong DB: nếu không đủ số lượng -> trả về 0 -> báo lỗi và rollback toàn bộ transaction
+            int updatedRows = ticketTypeRepository.decreaseRemainingQuantity(item.getTicketType().getId(), item.getQuantity());
+            if (updatedRows == 0) {
                 throw new AppException(ErrorCode.TICKET_NOT_ENOUGH);
             }
         }
@@ -161,7 +168,8 @@ public class OrderService {
                 .paymentMethod(paymentMethod)
                 .paymentStatus(PaymentStatus.PENDING)
                 .orderStatus(OrderStatus.PENDING)
-                .orderDate(LocalDateTime.now())
+                .orderDate(now)
+                .expiresAt(expiresAt)
                 .build();
 
         List<OrderItem> orderItems = new ArrayList<>();
@@ -232,6 +240,15 @@ public class OrderService {
             return;
         }
 
+        // Hoàn trả số lượng vé đã giữ tạm thời về kho
+        if (order.getItems() != null) {
+            for (OrderItem orderItem : order.getItems()) {
+                if (orderItem.getTicketType() != null && orderItem.getQuantity() != null && orderItem.getQuantity() > 0) {
+                    ticketTypeRepository.increaseRemainingQuantity(orderItem.getTicketType().getId(), orderItem.getQuantity());
+                }
+            }
+        }
+
         User customer = order.getCustomer();
         Cart cart = cartRepository.findByCustomerId(customer.getId())
                 .orElseGet(() -> {
@@ -284,6 +301,14 @@ public class OrderService {
             return;
         }
 
+        // Kiểm tra nếu đơn hàng đã bị hủy hoặc đã quá hạn giữ vé
+        if (order.getOrderStatus() == OrderStatus.CANCELLED ||
+            order.getPaymentStatus() == PaymentStatus.FAILED ||
+            (order.getExpiresAt() != null && order.getExpiresAt().isBefore(LocalDateTime.now()))) {
+            log.warn("DEBUG: [ORDER_PROCESS] Order {} đã hết hạn giữ vé hoặc bị hủy.", order.getOrderCode());
+            throw new AppException(ErrorCode.ORDER_EXPIRED);
+        }
+
         log.info("DEBUG: [ORDER_PROCESS] Order status: {}, Customer Email: {}", order.getPaymentStatus(), order.getCustomer() != null ? order.getCustomer().getEmail() : "NULL");
 
         try {
@@ -294,12 +319,7 @@ public class OrderService {
             
             for (OrderItem item : order.getItems()) {
                 TicketType tt = item.getTicketType();
-                if (tt.getRemainingQuantity() < item.getQuantity()) {
-                    throw new AppException(ErrorCode.TICKET_NOT_ENOUGH);
-                }
-                tt.setRemainingQuantity(tt.getRemainingQuantity() - item.getQuantity());
-                ticketTypeRepository.save(tt);
-
+                // Số lượng vé đã được trừ (giữ chỗ) lúc checkout, ở đây chỉ tạo vé điện tử
                 for (int i = 0; i < item.getQuantity(); i++) {
                     String ticketCode = "TKT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
                     Ticket ticket = Ticket.builder()
@@ -375,6 +395,15 @@ public class OrderService {
             return;
         }
 
+        // Hoàn trả số lượng vé đã giữ tạm thời về kho
+        if (order.getItems() != null) {
+            for (OrderItem orderItem : order.getItems()) {
+                if (orderItem.getTicketType() != null && orderItem.getQuantity() != null && orderItem.getQuantity() > 0) {
+                    ticketTypeRepository.increaseRemainingQuantity(orderItem.getTicketType().getId(), orderItem.getQuantity());
+                }
+            }
+        }
+
         Cart cart = cartRepository.findByCustomerId(user.getId())
                 .orElseGet(() -> {
                     Cart newCart = new Cart();
@@ -415,7 +444,8 @@ public class OrderService {
 
         cartRepository.save(cart);
         order.setOrderStatus(OrderStatus.CANCELLED);
+        order.setPaymentStatus(PaymentStatus.FAILED);
         orderRepository.save(order);
-        System.out.println("DEBUG: Order #" + orderCode + " cancelled and cart restored.");
+        System.out.println("DEBUG: Order #" + orderCode + " cancelled, tickets returned, and cart restored.");
     }
 }

@@ -72,6 +72,7 @@ public enum ErrorCode {
     EVENT_NOT_OPENING(5003, "Event is not opening for sale", HttpStatus.BAD_REQUEST),
     TICKET_NOT_ENOUGH(5004, "Not enough tickets available", HttpStatus.BAD_REQUEST),
     ORDER_NOT_FOUND(6001, "Order not found", HttpStatus.NOT_FOUND),
+    ORDER_EXPIRED(6002, "Đơn hàng đã hết thời gian thanh toán và bị hủy", HttpStatus.BAD_REQUEST),
     
     // TicketType validation (7001-7099)
     TICKET_NAME_REQUIRED(7001, "Tên hạng vé không được để trống", HttpStatus.BAD_REQUEST),
