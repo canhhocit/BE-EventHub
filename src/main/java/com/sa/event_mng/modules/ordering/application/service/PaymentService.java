@@ -27,18 +27,22 @@ import org.springframework.web.client.RestTemplate;
 import vn.payos.PayOS;
 
 @Service
-@RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @lombok.extern.slf4j.Slf4j
 public class PaymentService {
 
     PayOS payOS;
     OrderRepository orderRepository;
-    
-    @org.springframework.beans.factory.annotation.Autowired
-    @org.springframework.context.annotation.Lazy
-    @lombok.experimental.NonFinal
     OrderService orderService;
+
+    public PaymentService(
+            PayOS payOS,
+            OrderRepository orderRepository,
+            @org.springframework.context.annotation.Lazy OrderService orderService) {
+        this.payOS = payOS;
+        this.orderRepository = orderRepository;
+        this.orderService = orderService;
+    }
 
     @org.springframework.beans.factory.annotation.Value("${payos.client-id}")
     @lombok.experimental.NonFinal

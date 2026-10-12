@@ -11,11 +11,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-
-
 @RestController
+@RequestMapping("/statistics-event")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Tag(name = "Thống kê sự kiện", description = "Quản lý dữ liệu tổng hợp sự kiện")
@@ -24,25 +24,25 @@ public class StatisticsEventController {
 
     StatisticsEventService statisticsService;
 
-    @GetMapping("/statistics-event/by-status/{quarter}/{year}")
+    @GetMapping("/by-status/{quarter}/{year}")
     @Operation(summary = "Tỉ lệ phân bổ trạng thái từng quý (Admin)")
     public ApiResponse<EventStatusStatsResponse> getStatisticsByStatus(@PathVariable Long quarter, @PathVariable Long year) {
         return ApiResponse.<EventStatusStatsResponse>builder().result(statisticsService.getEventStatusStats(quarter, year)).build();
     }
 
-    @GetMapping("/statistics-event/by-temporal/{dayOfWeek}")
+    @GetMapping("/by-temporal/{dayOfWeek}")
     @Operation(summary = "Thống kê số lượng sự kiện bắt đầu (start_time) theo từng ngày trong tuần hoặc giờ trong ngày để tìm giờ vàng (Admin)")
     public ApiResponse<EventTemporalStatsResponse> getStatisticsByTemporal(@PathVariable int dayOfWeek) {
         return ApiResponse.<EventTemporalStatsResponse>builder().result(statisticsService.getEventTemporalStats(dayOfWeek)).build();
     }
 
-    @GetMapping("/statistics-event/top5-events")
+    @GetMapping("/top5-events")
     @Operation(summary = "Top 5 sự kiện nổi bật theo quý hiện tại (Admin)")
     public ApiResponse<TopEventQuarterResponse> getTop5EventsByCurrentQuarter() {
         return ApiResponse.<TopEventQuarterResponse>builder().result(statisticsService.getTop5EventsByQuarter()).build();
     }
 
-    @GetMapping("/statistics-event/{id_organizer}/{year}/overview")
+    @GetMapping("/{id_organizer}/{year}/overview")
     @Operation(summary = "Tổng quan các sự kiện trong năm (Organizer)")
     public ApiResponse<EventYearlyOverviewResponse> getEventYearlyOverview(
             @PathVariable("id_organizer") Long idOrganizer,
