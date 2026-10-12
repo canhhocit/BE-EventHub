@@ -371,6 +371,7 @@ public class OrderService {
         return pdfService.generateOrderInvoice(order);
     }
 
+    @Transactional(readOnly = true)
     public Page<OrderResponse> getMyOrders(PageRequest pageRequest) {
         User user = getCurrentUser();
         Page<Order> orderPage = orderRepository.findByCustomerId(user.getId(), pageRequest);

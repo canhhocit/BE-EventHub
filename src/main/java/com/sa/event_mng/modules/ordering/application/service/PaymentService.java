@@ -200,10 +200,10 @@ public class PaymentService {
     }
 
     private String hmacSHA256(String data, String key) throws Exception {
-        javax.crypto.spec.SecretKeySpec secretKeySpec = new javax.crypto.spec.SecretKeySpec(key.getBytes(), "HmacSHA256");
+        javax.crypto.spec.SecretKeySpec secretKeySpec = new javax.crypto.spec.SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
         javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
         mac.init(secretKeySpec);
-        byte[] rawHmac = mac.doFinal(data.getBytes());
+        byte[] rawHmac = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
         StringBuilder sb = new StringBuilder();
         for (byte b : rawHmac) {
             sb.append(String.format("%02x", b));
