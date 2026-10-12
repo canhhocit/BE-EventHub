@@ -66,6 +66,15 @@ public class EventController {
                                 .build();
         }
 
+        @DeleteMapping("/{id}")
+        @Operation(summary = "Xóa hoặc hủy sự kiện (Chủ sự kiện/ADMIN)")
+        public ApiResponse<Void> delete(@PathVariable Long id) {
+                eventService.delete(id);
+                return ApiResponse.<Void>builder()
+                                .message("Xóa hoặc hủy sự kiện thành công")
+                                .build();
+        }
+
         @GetMapping("/admin/all")
         @PreAuthorize("hasRole('ADMIN')")
         @Operation(summary = "Lấy tất cả sự kiện (ADMIN)")

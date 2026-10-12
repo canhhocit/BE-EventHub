@@ -222,6 +222,23 @@ public class EventService {
         return eventMapper.toEventResponse(eventRepository.save(event));
     }
 
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('ORGANIZER') and @securityCustom.isOwner(#id, authentication))")
+    public void delete(Long id) {
+        Event event = eventRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.EVENT_NOT_FOUND));
+
+        boolean hasOrders = event.getTicketTypes() != null && event.getTicketTypes().stream()
+                .anyMatch(tt -> tt.getTotalQuantity() > tt.getRemainingQuantity());
+
+        if (hasOrders) {
+            event.setStatus(EventStatus.CANCELLED);
+            eventRepository.save(event);
+        } else {
+            eventRepository.delete(event);
+        }
+    }
+
     public Page<EventResponse> getMyEvents(PageRequest pageRequest) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByUsername(username)
