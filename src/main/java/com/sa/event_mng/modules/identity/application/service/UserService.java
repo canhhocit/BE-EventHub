@@ -205,9 +205,9 @@ public class UserService {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User organizer = userRepository.findByUsername(username)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-        User staff = userRepository.findByUsernameAndEnabledTrue(staffUsername)
+        User staff = userRepository.findByUsername(staffUsername)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-        // Chỉ được vô hiệu hóa Staff of mình
+        // Chỉ được vô hiệu hóa Staff của mình
         if (staff.getOrganizer() == null || !staff.getOrganizer().getId().equals(organizer.getId()))
             throw new AppException(ErrorCode.UNAUTHORIZED);
         staff.setEnabled(false);
@@ -227,5 +227,32 @@ public class UserService {
         staff.setEnabled(true);
         userRepository.save(staff);
         return "Staff enabled";
+    }
+
+    @PreAuthorize("hasRole('ORGANIZER')")
+    @org.springframework.transaction.annotation.Transactional
+    public String deleteMyStaff(String staffUsername) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User organizer = userRepository.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        User staff = userRepository.findByUsername(staffUsername)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        // Chỉ được xóa Staff của chính Organizer này
+        if (staff.getOrganizer() == null || !staff.getOrganizer().getId().equals(organizer.getId())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        boolean isStaff = staff.getRoles() != null && staff.getRoles().stream()
+                .anyMatch(r -> "STAFF".equalsIgnoreCase(r.getName()));
+        if (!isStaff) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        if (staff.getRoles() != null) {
+            staff.getRoles().clear();
+        }
+        userRepository.delete(staff);
+        return "Xóa nhân viên thành công.";
     }
 }

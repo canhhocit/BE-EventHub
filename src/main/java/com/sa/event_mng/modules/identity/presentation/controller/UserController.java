@@ -103,13 +103,19 @@ public class UserController {
         return ApiResponse.<String>builder().result(userService.createStaff(request)).build();
     }
 
-    @Operation(summary = "[ORGANIZER] Vô hiệu hóa Staff của mình")
-    @DeleteMapping("/organizer/staff/{username}")
+    @Operation(summary = "[ORGANIZER] Xóa nhân viên của mình")
+    @DeleteMapping({"/organizer/staff/{username}", "/organizer/staff/{username}/delete"})
+    public ApiResponse<String> deleteMyStaff(@PathVariable String username) {
+        return ApiResponse.<String>builder().result(userService.deleteMyStaff(username)).build();
+    }
+
+    @Operation(summary = "[ORGANIZER] Vô hiệu hóa (Khóa) Staff của mình")
+    @PatchMapping("/organizer/staff/{username}/disable")
     public ApiResponse<String> disableMyStaff(@PathVariable String username) {
         return ApiResponse.<String>builder().result(userService.disableMyStaff(username)).build();
     }
 
-    @Operation(summary = "[ORGANIZER] Kích hoạt lại Staff của mình")
+    @Operation(summary = "[ORGANIZER] Kích hoạt lại (Mở khóa) Staff của mình")
     @PatchMapping("/organizer/staff/{username}/enable")
     public ApiResponse<String> enableMyStaff(@PathVariable String username) {
         return ApiResponse.<String>builder().result(userService.enableMyStaff(username)).build();
