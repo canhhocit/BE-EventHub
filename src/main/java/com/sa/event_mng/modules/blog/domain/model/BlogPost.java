@@ -21,10 +21,10 @@ public class BlogPost extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String title;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, columnDefinition = "TEXT")
     private String slug;
 
     @Column(columnDefinition = "TEXT")
@@ -33,6 +33,7 @@ public class BlogPost extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String content;
 
+    @Column(columnDefinition = "TEXT")
     private String thumbnail;
     
     @ElementCollection
@@ -40,7 +41,7 @@ public class BlogPost extends BaseEntity {
     @Column(name = "event_id")
     private Set<Long> eventIds;
 
-    @Column(name = "meta_title")
+    @Column(name = "meta_title", columnDefinition = "TEXT")
     private String metaTitle;
 
     @Column(name = "meta_description", columnDefinition = "TEXT")

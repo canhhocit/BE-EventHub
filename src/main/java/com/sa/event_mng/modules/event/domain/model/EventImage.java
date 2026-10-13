@@ -21,6 +21,6 @@ public class EventImage extends BaseEntity {
     @JoinColumn(name = "event_id")
     private Event event;
 
-    @Column(name = "image_url", nullable = false)
+    @Column(name = "image_url", nullable = false, columnDefinition = "TEXT")
     private String imageUrl;
 }
