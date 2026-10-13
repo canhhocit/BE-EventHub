@@ -38,6 +38,7 @@ public class SecurityConfig {
       "/auth/verify",
       "/categories/**",
       "/events/**",
+      "/statistics-event/**",
       "/blog/**",
       "/api/v1/payments/payos-webhook",
       "/api/v1/payments/redirect",

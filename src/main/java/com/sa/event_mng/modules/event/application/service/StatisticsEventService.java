@@ -103,19 +103,27 @@ public class StatisticsEventService {
                 .build();
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
     @Cacheable(value = "top_events")
     public TopEventQuarterResponse getTop5EventsByQuarter() {
         LocalDate now = LocalDate.now();
         int quarter = (now.getMonthValue() - 1) / 3 + 1;
         int year = now.getYear();
-        List<TopEventQuarterResponse.EventItem> events = statisticsEventRepository.findTop5EventsByQuarter(quarter, year).stream()
+        List<com.sa.event_mng.modules.event.domain.model.projection.TopEventQuarterProjection> rawEvents = statisticsEventRepository.findTop5EventsByQuarter(quarter, year);
+        if (rawEvents == null || rawEvents.isEmpty()) {
+            rawEvents = statisticsEventRepository.findTop5EventsByQuarter(0, 0);
+        }
+        List<TopEventQuarterResponse.EventItem> events = rawEvents.stream()
                 .map(p -> TopEventQuarterResponse.EventItem.builder()
+                        .eventId(p.getEventId())
                         .eventName(p.getEventName())
                         .ticketsSold(p.getTicketsSold())
                         .occupancyRate(p.getOccupancyRate())
                         .totalRevenue(p.getTotalRevenue())
                         .status(p.getStatus())
+                        .province(p.getProvince())
+                        .startTime(p.getStartTime())
+                        .eventImage(p.getEventImage())
+                        .minPrice(p.getMinPrice())
                         .build())
                 .toList();
         return TopEventQuarterResponse.builder()
@@ -123,5 +131,26 @@ public class StatisticsEventService {
                 .year(year)
                 .events(events)
                 .build();
+    }
+
+    public List<TopEventQuarterResponse.EventItem> getTopFeaturedOpeningEvents() {
+        List<com.sa.event_mng.modules.event.domain.model.projection.TopEventQuarterProjection> rawEvents = statisticsEventRepository.findTopOpeningEvents();
+        if (rawEvents == null || rawEvents.isEmpty()) {
+            rawEvents = statisticsEventRepository.findTop5EventsByQuarter(0, 0);
+        }
+        return rawEvents.stream()
+                .map(p -> TopEventQuarterResponse.EventItem.builder()
+                        .eventId(p.getEventId())
+                        .eventName(p.getEventName())
+                        .ticketsSold(p.getTicketsSold())
+                        .occupancyRate(p.getOccupancyRate())
+                        .totalRevenue(p.getTotalRevenue())
+                        .status(p.getStatus())
+                        .province(p.getProvince())
+                        .startTime(p.getStartTime())
+                        .eventImage(p.getEventImage())
+                        .minPrice(p.getMinPrice())
+                        .build())
+                .toList();
     }
 }

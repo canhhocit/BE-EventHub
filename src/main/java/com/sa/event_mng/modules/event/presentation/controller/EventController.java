@@ -30,12 +30,21 @@ import org.springframework.web.bind.annotation.*;
 public class EventController {
 
         EventService eventService;
+        com.sa.event_mng.modules.event.application.service.StatisticsEventService statisticsEventService;
 
         @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         @Operation(summary = "Tạo sự kiện mới (ORGANIZER)")
         public ApiResponse<EventResponse> create(@ModelAttribute @Valid EventRequest request) {
                 return ApiResponse.<EventResponse>builder()
                                 .result(eventService.create(request))
+                                .build();
+        }
+
+        @GetMapping("/top-featured")
+        @Operation(summary = "Lấy danh sách sự kiện nổi bật và bán chạy nhất sàn (Public)")
+        public ApiResponse<java.util.List<com.sa.event_mng.modules.event.application.dto.response.TopEventQuarterResponse.EventItem>> getTopFeatured() {
+                return ApiResponse.<java.util.List<com.sa.event_mng.modules.event.application.dto.response.TopEventQuarterResponse.EventItem>>builder()
+                                .result(statisticsEventService.getTopFeaturedOpeningEvents())
                                 .build();
         }
 

@@ -37,25 +37,88 @@ public interface StatisticsEventRepository extends JpaRepository<Event, Long> {
     List<EventTemporalStatsProjection> findEventTemporalStats(@Param("dayOfWeek") Integer dayOfWeek);
 
     @Query(value = """
-    SELECT e.name AS eventName,
-        SUM(tt.total_quantity - tt.remaining_quantity) AS ticketsSold,
-        CASE
-            WHEN SUM(tt.total_quantity) = 0 THEN 0
-            ELSE SUM(tt.total_quantity - tt.remaining_quantity) * 100.0 / SUM(tt.total_quantity)
-        END AS occupancyRate,
-        SUM(o.total_amount) AS totalRevenue,
-        e.status AS status
+    SELECT 
+        e.id AS eventId,
+        e.name AS eventName,
+        e.status AS status,
+        e.province AS province,
+        CAST(e.start_time AS TEXT) AS startTime,
+        (SELECT img.image_url FROM event_images img WHERE img.event_id = e.id ORDER BY img.id ASC LIMIT 1) AS eventImage,
+        (SELECT MIN(tt_min.price) FROM ticket_types tt_min WHERE tt_min.event_id = e.id) AS minPrice,
+        CAST(COALESCE(tt_agg.tickets_sold, 0) AS INTEGER) AS ticketsSold,
+        CAST(COALESCE(tt_agg.occupancy_rate, 0) AS DOUBLE PRECISION) AS occupancyRate,
+        COALESCE(paid.total_revenue, tt_agg.estimated_revenue, 0) AS totalRevenue
     FROM events e
-    JOIN ticket_types tt ON e.id = tt.event_id
-    LEFT JOIN order_items oi ON oi.ticket_type_id = tt.id
-    LEFT JOIN orders o ON o.id = oi.order_id
-    WHERE EXTRACT(QUARTER FROM e.start_time) = :quarter AND EXTRACT(YEAR FROM e.start_time) = :year
-    AND o.payment_status = 'PAID'
-    GROUP BY e.id, e.name, e.status
+    JOIN (
+        SELECT 
+            event_id,
+            SUM(total_quantity - remaining_quantity) AS tickets_sold,
+            SUM(total_quantity) AS total_capacity,
+            CASE 
+                WHEN SUM(total_quantity) = 0 THEN 0
+                ELSE ROUND(SUM(total_quantity - remaining_quantity) * 100.0 / SUM(total_quantity), 1)
+            END AS occupancy_rate,
+            SUM((total_quantity - remaining_quantity) * price) AS estimated_revenue
+        FROM ticket_types
+        GROUP BY event_id
+    ) tt_agg ON tt_agg.event_id = e.id
+    LEFT JOIN (
+        SELECT 
+            tt.event_id,
+            SUM(oi.subtotal) AS total_revenue
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id AND o.payment_status = 'PAID'
+        JOIN ticket_types tt ON tt.id = oi.ticket_type_id
+        GROUP BY tt.event_id
+    ) paid ON paid.event_id = e.id
+    WHERE (:quarter = 0 OR EXTRACT(QUARTER FROM e.start_time) = :quarter)
+      AND (:year = 0 OR EXTRACT(YEAR FROM e.start_time) = :year)
+      AND e.status IN ('OPENING', 'COMPLETED')
     ORDER BY totalRevenue DESC, ticketsSold DESC, occupancyRate DESC
     LIMIT 5
     """, nativeQuery = true)
     List<TopEventQuarterProjection> findTop5EventsByQuarter(@Param("quarter") int quarter, @Param("year") int year);
+
+    @Query(value = """
+    SELECT 
+        e.id AS eventId,
+        e.name AS eventName,
+        e.status AS status,
+        e.province AS province,
+        CAST(e.start_time AS TEXT) AS startTime,
+        (SELECT img.image_url FROM event_images img WHERE img.event_id = e.id ORDER BY img.id ASC LIMIT 1) AS eventImage,
+        (SELECT MIN(tt_min.price) FROM ticket_types tt_min WHERE tt_min.event_id = e.id) AS minPrice,
+        CAST(COALESCE(tt_agg.tickets_sold, 0) AS INTEGER) AS ticketsSold,
+        CAST(COALESCE(tt_agg.occupancy_rate, 0) AS DOUBLE PRECISION) AS occupancyRate,
+        COALESCE(paid.total_revenue, tt_agg.estimated_revenue, 0) AS totalRevenue
+    FROM events e
+    JOIN (
+        SELECT 
+            event_id,
+            SUM(total_quantity - remaining_quantity) AS tickets_sold,
+            SUM(total_quantity) AS total_capacity,
+            CASE 
+                WHEN SUM(total_quantity) = 0 THEN 0
+                ELSE ROUND(SUM(total_quantity - remaining_quantity) * 100.0 / SUM(total_quantity), 1)
+            END AS occupancy_rate,
+            SUM((total_quantity - remaining_quantity) * price) AS estimated_revenue
+        FROM ticket_types
+        GROUP BY event_id
+    ) tt_agg ON tt_agg.event_id = e.id
+    LEFT JOIN (
+        SELECT 
+            tt.event_id,
+            SUM(oi.subtotal) AS total_revenue
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id AND o.payment_status = 'PAID'
+        JOIN ticket_types tt ON tt.id = oi.ticket_type_id
+        GROUP BY tt.event_id
+    ) paid ON paid.event_id = e.id
+    WHERE e.status = 'OPENING'
+    ORDER BY ticketsSold DESC, occupancyRate DESC, totalRevenue DESC
+    LIMIT 5
+    """, nativeQuery = true)
+    List<TopEventQuarterProjection> findTopOpeningEvents();
 
     @Query(value = """
     SELECT
