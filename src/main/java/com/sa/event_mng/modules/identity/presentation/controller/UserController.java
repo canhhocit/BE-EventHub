@@ -97,8 +97,8 @@ public class UserController {
                 .build();
     }
 
-    @Operation(summary = "[ORGANIZER] Thêm tài khonar Staff mới")
-    @PostMapping("/organizer/staff")
+    @Operation(summary = "[ORGANIZER] Thêm tài khoản Staff mới")
+    @PostMapping({"/organizer/staff", "/organizer/create-staff"})
     public ApiResponse<String> createMyStaff(@RequestBody @Valid com.sa.event_mng.modules.identity.application.dto.request.UserCreateRequest request) {
         return ApiResponse.<String>builder().result(userService.createStaff(request)).build();
     }

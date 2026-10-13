@@ -26,6 +26,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -183,14 +186,18 @@ public class UserService {
                 .phone(request.getPhone())
                 .address(request.getAddress())
                 .roles(roles)
-                .enabled(false)
+                .enabled(true)
                 .verificationToken(token)
                 .organizer(organizer)
                 .build();
 
         userRepository.save(staff);
-        emailService.sendVerificationEmail(staff.getEmail(), token);
-        return "Staff created successfully. Please ask the staff to check their email for verification.";
+        try {
+            emailService.sendVerificationEmail(staff.getEmail(), token);
+        } catch (Exception e) {
+            log.warn("Không thể gửi email xác thực cho staff: {}", e.getMessage());
+        }
+        return "Tạo tài khoản nhân viên thành công.";
     }
 
     @PreAuthorize("hasRole('ORGANIZER')")
