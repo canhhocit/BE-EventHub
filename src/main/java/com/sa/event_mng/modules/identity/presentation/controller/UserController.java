@@ -43,17 +43,22 @@ public class UserController {
 
     // ===================== ADMIN: quản lý CUSTOMER & ORGANIZER =====================
 
-    @Operation(summary = "[ADMIN] Lấy danh sách Customer hoặc Organizer",
-               description = "Tham số role: CUSTOMER hoặc ORGANIZER. Để trống = lấy cả hai. Không trả về STAFF.")
+    @Operation(summary = "[ADMIN] Lấy danh sách Customer, Organizer, Staff với bộ lọc & tìm kiếm",
+               description = "Tham số: role (CUSTOMER/ORGANIZER/STAFF), status (ACTIVE/LOCKED), search (username/fullname/email), sort (asc/desc)")
     @GetMapping("/admin")
     public ApiResponse<Page<UserResponse>> getUsersByRole(
             @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        PageRequest pageRequest = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "desc") String sort) {
+        Sort.Direction direction = "asc".equalsIgnoreCase(sort) || "createdAt,asc".equalsIgnoreCase(sort)
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+        PageRequest pageRequest = PageRequest.of(Math.max(0, page - 1), size, Sort.by(direction, "createdAt"));
         return ApiResponse.<Page<UserResponse>>builder()
-                .result(userService.getUsersByRole(role, search, pageRequest))
+                .result(userService.getUsersByRole(role, status, search, pageRequest))
                 .build();
     }
 

@@ -25,8 +25,18 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT u FROM User u JOIN u.roles r WHERE r.name = :roleName AND (u.username LIKE %:search% OR u.fullName LIKE %:search%)")
     Page<User> findByRoleNameAndSearch(@Param("roleName") String roleName, @Param("search") String search, Pageable pageable);
 
-    @Query("SELECT u FROM User u JOIN u.roles r WHERE r.name IN :roleNames AND (u.username LIKE %:search% OR u.fullName LIKE %:search%)")
-    Page<User> findByRoleNamesAndSearch(@Param("roleNames") List<String> roleNames, @Param("search") String search, Pageable pageable);
+    @Query("SELECT DISTINCT u FROM User u JOIN u.roles r WHERE " +
+           "r.name IN :roleNames AND " +
+           "(:status IS NULL OR u.enabled = :status) AND (" +
+           ":search IS NULL OR :search = '' OR " +
+           "LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(COALESCE(u.fullName, '')) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(COALESCE(u.email, '')) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<User> findByRoleNamesAndSearch(
+            @Param("roleNames") List<String> roleNames,
+            @Param("status") Boolean status,
+            @Param("search") String search,
+            Pageable pageable);
 
     // Đếm user theo role
     @Query("SELECT COUNT(u) FROM User u JOIN u.roles r WHERE r.name = :roleName AND u.enabled = true")

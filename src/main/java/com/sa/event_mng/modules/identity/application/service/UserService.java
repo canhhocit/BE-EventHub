@@ -56,16 +56,29 @@ public class UserService {
     // ===================== ADMIN: quản lý CUSTOMER và ORGANIZER =====================
 
     @PreAuthorize("hasRole('ADMIN')")
-    public Page<UserResponse> getUsersByRole(String role, String search, PageRequest pageRequest) {
-        // Admin chỉ được xem CUSTOMER và ORGANIZER, không thấy STAFF
+    public Page<UserResponse> getUsersByRole(String role, String status, String search, PageRequest pageRequest) {
         String normalizedRole = role != null && !role.isBlank() ? role.toUpperCase() : null;
-        if (normalizedRole != null && !normalizedRole.equals("CUSTOMER") && !normalizedRole.equals("ORGANIZER")) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
+        List<String> allowedRoles;
+        if (normalizedRole == null || normalizedRole.equals("ALL")) {
+            allowedRoles = List.of("CUSTOMER", "ORGANIZER", "STAFF");
+        } else if (normalizedRole.equals("CUSTOMER") || normalizedRole.equals("ORGANIZER") || normalizedRole.equals("STAFF")) {
+            allowedRoles = List.of(normalizedRole);
+        } else {
+            allowedRoles = List.of("CUSTOMER", "ORGANIZER", "STAFF");
         }
-        List<String> allowedRoles = normalizedRole != null
-                ? List.of(normalizedRole)
-                : List.of("CUSTOMER", "ORGANIZER");
-        return userRepository.findByRoleNamesAndSearch(allowedRoles, search != null ? search : "", pageRequest)
+
+        Boolean enabledFilter = null;
+        if (status != null && !status.isBlank()) {
+            if ("ACTIVE".equalsIgnoreCase(status) || "TRUE".equalsIgnoreCase(status)) {
+                enabledFilter = true;
+            } else if ("LOCKED".equalsIgnoreCase(status) || "FALSE".equalsIgnoreCase(status)) {
+                enabledFilter = false;
+            }
+        }
+
+        String searchKeyword = search != null ? search.trim() : "";
+
+        return userRepository.findByRoleNamesAndSearch(allowedRoles, enabledFilter, searchKeyword, pageRequest)
                 .map(userMapper::toUserResponse);
     }
 
