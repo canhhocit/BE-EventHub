@@ -58,7 +58,7 @@ Ngoài request, CPU bị bóp gần như về 0, nên code đã được chỉnh
 
 Chạy local/VPS không đặt các biến trên nên vẫn chạy nền như cũ.
 
-**Muốn hết chờ khởi động** (tốn khoảng 55–60 USD/tháng): trong `cloudbuild.yaml` đổi `--cpu-throttling` → `--no-cpu-throttling`, `--min=0` → `--min=1`, `APP_ASYNC_ENABLED=false` → `true`.
+**Muốn hết chờ khởi động** (với 2 CPU/4 GiB tốn khoảng 120–130 USD/tháng): trong `cloudbuild.yaml` đổi `--cpu-throttling` → `--no-cpu-throttling`, `--min=0` → `--min=1`, `APP_ASYNC_ENABLED=false` → `true`.
 
 ---
 
@@ -235,7 +235,7 @@ Xong, script in URL và kết quả `/api/v1/ping`.
 | Tab | Phải thấy |
 |---|---|
 | Đầu trang | URL `https://event-mng-api-431351932095.asia-southeast1.run.app` |
-| **Containers** | **CPU limit** `1`, Memory `1 GiB`, **Startup CPU boost** ✓, port `8080` |
+| **Containers** | **CPU limit** `2`, Memory `4 GiB`, **Startup CPU boost** ✓, port `8080` |
 | ↳ Variables & Secrets | `SPRING_CONFIG_ADDITIONAL_LOCATION`, `BACKEND_URL`, `SEED_ENABLED=false`, `APP_ASYNC_ENABLED=false`, `APP_PING_ENABLED=false` |
 | ↳ Volume (secret) | mount path `/secrets`, file `app.properties`, secret `event-mng-env`, version `latest` |
 | **Scaling** | Billing **Request-based**; Service scaling: min `0`, max `1` |

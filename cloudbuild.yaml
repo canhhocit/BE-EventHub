@@ -38,14 +38,15 @@ steps:
       - --region=${_REGION}
       - --service-account=${_RUNTIME_SA}@${PROJECT_ID}.iam.gserviceaccount.com
       - --allow-unauthenticated
-      - --cpu=1
-      - --memory=1Gi
+      # Đổi CPU/RAM ở đây, đừng sửa trên console: mỗi lần push main sẽ deploy lại đúng giá trị này.
+      - --cpu=2
+      - --memory=4Gi
       # Request-based billing + scale về 0: chỉ tính tiền khi đang xử lý request, không ai dùng thì instance tắt
       # (request đầu tiên sau khi ngủ phải chờ app khởi động ~20-40s). Vì ngoài request CPU bị bóp:
       #   APP_ASYNC_ENABLED=false  -> hoàn tất thanh toán, PDF, mail chạy ngay trong request (BackgroundTaskRunner)
       #   APP_PING_ENABLED=false   -> tắt PingTask tự gọi chính mình (nếu không server/DB không bao giờ ngủ)
       #   EventStatusTask được gọi bù trong request (EventStatusRefreshInterceptor).
-      # Muốn hết chờ khởi động: --no-cpu-throttling, --min=1, APP_ASYNC_ENABLED=true (tốn ~55-60 USD/tháng).
+      # Muốn hết chờ khởi động: --no-cpu-throttling, --min=1, APP_ASYNC_ENABLED=true (với 2 CPU/4 GiB tốn ~120-130 USD/tháng).
       - --cpu-throttling
       - --cpu-boost
       - --min=0
