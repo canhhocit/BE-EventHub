@@ -11,4 +11,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class AuthenticationResponse {
     private String token;
+    // Yêu cầu người dùng đổi mật khẩu ngay sau khi login (admin reset)
+    private boolean mustChangePassword;
 }

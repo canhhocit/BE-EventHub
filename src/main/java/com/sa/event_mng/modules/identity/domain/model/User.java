@@ -50,6 +50,10 @@ public class User extends BaseEntity {
     private String otp;
     private java.time.LocalDateTime otpExpiry;
 
+    // Đánh dấu tài khoản bị admin reset mật khẩu → phải đổi mật khẩu lần đầu khi đăng nhập
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean mustChangePassword;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organizer_id")
     private User organizer;

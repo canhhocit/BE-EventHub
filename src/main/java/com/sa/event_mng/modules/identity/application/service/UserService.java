@@ -139,6 +139,51 @@ public class UserService {
         return "User unlocked";
     }
 
+    /*
+     [ADMIN] Reset mật khẩu về mặc định 123456.
+      mustChangePassword = true 
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    public String adminResetPassword(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        String temporaryPassword = "123456";
+        user.setPassword(passwordEncoder.encode(temporaryPassword));
+        user.setMustChangePassword(true);
+        userRepository.save(user);
+
+        // Gửi email thông báo nếu có email
+        if (user.getEmail() != null && !user.getEmail().isBlank()) {
+            try {
+                emailService.sendPasswordResetByAdminEmail(user.getEmail(), user.getUsername(), temporaryPassword);
+            } catch (Exception e) {
+                log.warn("Không thể gửi email reset mật khẩu cho {}: {}", username, e.getMessage());
+            }
+        }
+
+        return "Đã reset mật khẩu tài khoản " + username + " về mặc định. Email thông báo đã được gửi.";
+    }
+
+    /**
+     * Người dùng tự đổi mật khẩu sau khi admin reset (xóa cờ mustChangePassword).
+     */
+    @PreAuthorize("isAuthenticated()")
+    public String changePasswordAfterReset(String newPassword) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        if (newPassword == null || newPassword.trim().length() < 6) {
+            throw new AppException(ErrorCode.PASSWORD_INVALID);
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+        return "Đổi mật khẩu thành công.";
+    }
+
     // ===================== ORGANIZER: quản lý STAFF của mình =====================
 
     @PreAuthorize("hasRole('ORGANIZER')")

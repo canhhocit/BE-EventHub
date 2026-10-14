@@ -79,6 +79,7 @@ public class AuthenticationService {
         log.info("[Auth] : Đăng nhập thành công");
         return AuthenticationResponse.builder()
                 .token(token)
+                .mustChangePassword(user.isMustChangePassword())
                 .build();
     }
 

@@ -80,6 +80,20 @@ public class UserController {
         return ApiResponse.<String>builder().result(userService.unlockUser(username)).build();
     }
 
+    @Operation(summary = "[ADMIN] Reset mật khẩu về mặc định (123456) và gửi email thông báo",
+               description = "Áp dụng cho mọi tài khoản. Sau khi reset, user bắt buộc đổi mật khẩu khi đăng nhập lần đầu.")
+    @PatchMapping("/admin/{username}/reset-password")
+    public ApiResponse<String> adminResetPassword(@PathVariable String username) {
+        return ApiResponse.<String>builder().result(userService.adminResetPassword(username)).build();
+    }
+
+    @Operation(summary = "[USER] Đổi mật khẩu sau khi bị admin reset (xóa cờ bắt buộc đổi mật khẩu)")
+    @PatchMapping("/change-password-after-reset")
+    public ApiResponse<String> changePasswordAfterReset(@RequestBody java.util.Map<String, String> body) {
+        String newPassword = body.get("newPassword");
+        return ApiResponse.<String>builder().result(userService.changePasswordAfterReset(newPassword)).build();
+    }
+
     // ===================== ORGANIZER: quản lý STAFF của mình =====================
 
     @Operation(summary = "[ORGANIZER] Xem danh sách Staff của mình")

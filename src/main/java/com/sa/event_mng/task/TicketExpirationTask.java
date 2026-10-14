@@ -28,9 +28,7 @@ public class TicketExpirationTask {
 
     private final AtomicLong lastRunAt = new AtomicLong();
 
-    /**
-     * Tự động quét và giải phóng vé giữ tạm thời cho các đơn hàng quá hạn thanh toán mỗi phút.
-     */
+
     @Scheduled(fixedRate = INTERVAL_MS)
     @Transactional
     public void scanAndReleaseExpiredOrders() {

@@ -51,6 +51,20 @@ public class EmailService {
 
         sendEmailViaApi(to, "[Event Manager] Mã xác thực OTP", htmlContent, null, null);
     }
+
+    public void sendPasswordResetByAdminEmail(String to, String username, String temporaryPassword) {
+        String htmlContent = "<div style='font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;border:1px solid #eee;border-radius:8px;'>" +
+                "<h2 style='color:#e85d04;'>🔐 Mật khẩu của bạn đã được đặt lại</h2>" +
+                "<p>Tài khoản <b>" + username + "</b> vừa được quản trị viên đặt lại mật khẩu.</p>" +
+                "<p>Mật khẩu tạm thời của bạn là:</p>" +
+                "<div style='background:#f4f4f4;padding:12px 20px;border-radius:6px;font-size:22px;font-weight:bold;letter-spacing:4px;text-align:center;'>" +
+                temporaryPassword +
+                "</div>" +
+                "<p style='margin-top:16px;color:#555;'>Vui lòng đăng nhập và <b>đổi mật khẩu ngay</b> sau khi đăng nhập lần đầu.</p>" +
+                "<p style='color:#999;font-size:12px;'>Nếu bạn không yêu cầu việc này, hãy liên hệ ngay với quản trị viên.</p>" +
+                "</div>";
+        sendEmailViaApi(to, "[Event Hub] Mật khẩu của bạn đã được đặt lại bởi quản trị viên", htmlContent, null, null);
+    }
 //thymeleaf
     public void sendOrderConfirmationWithInvoice(String to, Order order, byte[] pdfBytes) {
         try {
