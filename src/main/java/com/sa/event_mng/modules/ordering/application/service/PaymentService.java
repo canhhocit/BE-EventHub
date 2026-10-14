@@ -3,7 +3,6 @@ package com.sa.event_mng.modules.ordering.application.service;
 import com.sa.event_mng.modules.ordering.domain.model.Order;
 import com.sa.event_mng.modules.ordering.domain.repository.OrderRepository;
 import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
 import java.nio.charset.StandardCharsets;
